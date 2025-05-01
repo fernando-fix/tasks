@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Tarefas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        crossorigin="anonymous" />
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            padding: 2rem;
+        }
+
+        /* Estilo dark para inputs */
+        .form-control {
+            background-color: #1e1e1e;
+            border-color: #333;
+            color: #e0e0e0;
+        }
+
+        .form-control:focus {
+            background-color: #2a2a2a;
+            border-color: #3498db;
+            color: #e0e0e0;
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+
+        .form-control:hover {
+            background-color: #252525;
+        }
+
+        /* Remove o autofill amarelo do Chrome */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #e0e0e0;
+            -webkit-box-shadow: 0 0 0px 1000px #1e1e1e inset;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        /* Ajusta a cor do placeholder */
+        .form-control::placeholder {
+            color: #666;
+        }
+
+        .task {
+            background: #1e1e1e;
+            padding: 1rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .task input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .subtasks {
+            margin-left: 2rem;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .subtasks.expanded {
+            max-height: 1000px;
+            /* altura máxima suficiente para a maioria dos casos */
+            opacity: 1;
+        }
+
+        .drag-handle {
+            cursor: move;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #4caf50;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        .dragging {
+            opacity: 0.6;
+            background: #232b3b !important;
+        }
+
+        .drop-zone {
+            height: 12px;
+            background: transparent;
+            transition: background 0.2s, border-color 0.2s;
+            border-radius: 4px;
+            margin: 0 0 2px 0;
+            border: 1.5px dashed transparent;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .dragging-item .drop-zone {
+            border-color: #5c7fa755;
+        }
+
+        .drop-zone:hover {
+            background: rgba(181, 228, 255, 0.1);
+            border-color: #3498db55;
+        }
+
+        .drop-zone.active {
+            background: #b5e4ff !important;
+            border-color: #3498db;
+        }
+
+        .drop-zone.child {
+            height: 18px;
+            background: transparent;
+            margin: 4px 0 0 0;
+        }
+
+        .clear-data {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .chevron-rotate {
+            transition: transform 0.3s ease;
+            display: inline-block;
+        }
+
+        .chevron-rotate.open {
+            transform: rotate(90deg);
+        }
+
+        .btn-round {
+            border-radius: 50% !important;
+            width: 32px;
+            height: 32px;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-light">
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Gerenciador de Tarefas</h1>
+            <div class="d-flex align-items-center gap-3">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="hideCompleted">
+                    <label class="form-check-label" for="hideCompleted">Ocultar concluídas</label>
+                </div>
+                <button class="btn btn-outline-danger" onclick="clearAllData()">
+                    <i class="fa-solid fa-trash-can me-2"></i>Limpar Dados
+                </button>
+            </div>
+        </div>
+        <div class="mb-4">
+            <div id="contextInfo" class="mb-2 text-info" style="display:none"></div>
+            <form id="taskForm" onsubmit="handleAddOrEdit(event)">
+                <input type="text" id="taskInput" class="form-control mb-2" placeholder="Digite a tarefa" autofocus>
+                <input type="number" id="timeInput" class="form-control mb-2" placeholder="Tempo estimado (min)"
+                    min="0">
+                <button type="submit" class="btn btn-outline-primary me-1" id="addButton">
+                    <i class="fa-solid fa-plus me-2"></i>Adicionar
+                </button>
+                <button type="button" class="btn btn-secondary" id="cancelBtn" style="display:none"
+                    onclick="cancelContext()">Cancelar</button>
+            </form>
+        </div>
+        <div id="taskList"></div>
+    </div>
+
+    <script>
+        let tasks = [];
+        let context = null;
+        let hideCompleted = false;
+
+        // Carrega configurações e tarefas ao iniciar
+        loadTasks();
+
+        // Configura o switch de ocultar concluídas
+        document.getElementById('hideCompleted').addEventListener('change', function () {
+            hideCompleted = this.checked;
+            localStorage.setItem('hideCompleted', hideCompleted);
+            renderTasks();
+        });
+
+        function loadTasks() {
+            // Carrega preferência de ocultar concluídas
+            hideCompleted = localStorage.getItem('hideCompleted') === 'true';
+            document.getElementById('hideCompleted').checked = hideCompleted;
+
+            // Carrega tarefas
+            const data = localStorage.getItem('tasks');
+            if (data) {
+                tasks = JSON.parse(data);
+
+                // Função para migrar dados antigos (title -> text)
+                const migrateTask = (task) => {
+                    // Se a tarefa tem title mas não tem text, migra o dado
+                    if (task.title !== undefined && task.text === undefined) {
+                        task.text = task.title;
+                        delete task.title;
+                    }
+                    // Se não tem nem title nem text, coloca texto vazio
+                    if (task.text === undefined && task.title === undefined) {
+                        task.text = '';
+                    }
+                    // Migra recursivamente as subtarefas
+                    if (task.subtasks && task.subtasks.length > 0) {
+                        task.subtasks = task.subtasks.map(migrateTask);
+                    }
+                    return task;
+                };
+
+                // Aplica a migração em todas as tarefas
+                tasks = tasks.map(migrateTask);
+
+                // Salva os dados migrados
+                saveTasks();
+            } else {
+                tasks = [];
+            }
+            renderTasks();
+        }
+
+        function setContext(newContext) {
+            context = newContext;
+            const contextInfo = document.getElementById('contextInfo');
+            const addButton = document.getElementById('addButton');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const taskInput = document.getElementById('taskInput');
+
+            if (context) {
+                contextInfo.style.display = 'block';
+                cancelBtn.style.display = 'inline-block';
+
+                if (context.type === 'edit') {
+                    const task = findTaskById(context.id);
+                    if (task) {
+                        contextInfo.textContent = 'Editando tarefa';
+                        addButton.innerHTML = '<i class="fa-solid fa-check me-2"></i>Salvar';
+                        taskInput.value = task.text;
+                        document.getElementById('timeInput').value = task.time || '';
+                    }
+                } else if (context.type === 'new') {
+                    contextInfo.textContent = context.parentId ?
+                        'Adicionando subtarefa na posição selecionada' :
+                        'Adicionando tarefa na posição selecionada';
+                    addButton.innerHTML = '<i class="fa-solid fa-plus me-2"></i>Adicionar';
+                }
+            } else {
+                contextInfo.style.display = 'none';
+                cancelBtn.style.display = 'none';
+                addButton.innerHTML = '<i class="fa-solid fa-plus me-2"></i>Adicionar';
+            }
+        }
+
+        function cancelContext() {
+            setContext(null);
+        }
+
+        function handleAddOrEdit(event) {
+            event.preventDefault();
+            const taskInput = document.getElementById('taskInput');
+            const timeInput = document.getElementById('timeInput');
+            const task = {
+                id: context?.id || crypto.randomUUID(),
+                text: taskInput.value.trim(),
+                time: parseInt(timeInput.value) || 0,
+                done: false,
+                subtasks: [],
+                expanded: false
+            };
+
+            if (context?.type === 'edit') {
+                updateTaskById(context.id, () => task);
+            } else {
+                if (context?.type === 'new') {
+                    // Adiciona a tarefa na posição específica
+                    if (context.parentId) {
+                        // Adiciona como subtarefa
+                        updateTaskById(context.parentId, (parent) => {
+                            parent.subtasks.splice(context.position, 0, task);
+                            return parent;
+                        });
+                    } else {
+                        // Adiciona na lista principal
+                        tasks.splice(context.position, 0, task);
+                    }
+                } else {
+                    // Adiciona ao final da lista principal
+                    tasks.push(task);
+                }
+            }
+
+            saveTasks();
+            renderTasks();
+            taskInput.value = '';
+            timeInput.value = '';
+            cancelContext();
+        }
+
+        function editTask(id) {
+            setContext({
+                type: 'edit',
+                id: id
+            });
+            document.getElementById('taskInput').focus();
+        }
+
+        function findTaskById(id, list = tasks) {
+            for (let task of list) {
+                if (task.id === id) return task;
+                const found = findTaskById(id, task.subtasks);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('taskList');
+            container.innerHTML = '';
+            renderTaskList(tasks, container, null);
+            saveTasks(); // Sempre salva após qualquer modificação
+        }
+
+        let draggingId = null;
+        let currentDropZone = null;
+
+        function renderTaskList(taskList, container, parentTask = null) {
+            taskList.forEach((task, index) => {
+                // Se estiver ocultando concluídas e a tarefa estiver concluída, pula
+                if (hideCompleted && task.done && !parentTask) {
+                    return;
+                }
+
+                // Cria faixa azul ANTES do card
+                container.appendChild(createDropZone(parentTask, index, 'before'));
+
+                // Cria o card da tarefa
+                container.appendChild(createTaskElement(task, parentTask, index));
+            });
+
+            // Cria última faixa azul
+            container.appendChild(createDropZone(parentTask, taskList.length, 'before'));
+        }
+
+        function createDropZone(parentTask, index, type) {
+            const dropZone = document.createElement('div');
+            dropZone.className = `drop-zone ${type === 'child' ? 'child' : ''}`;
+            dropZone.title = 'Clique para criar aqui ou arraste uma tarefa para esta área';
+
+            // Adiciona evento de clique para cadastrar novo item
+            dropZone.addEventListener('click', () => {
+                const newContext = {
+                    type: 'new',
+                    parentId: parentTask ? parentTask.id : null,
+                    position: index
+                };
+                setContext(newContext);
+                document.getElementById('taskInput').focus();
+            });
+
+            dropZone.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                if (draggingId !== null) {
+                    clearAllDropZones();
+                    dropZone.classList.add('active');
+                    currentDropZone = { parentTask, index, type };
+                }
+            });
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('active');
+                currentDropZone = null;
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (draggingId !== null) {
+                    if (type === 'child') {
+                        moveTaskAsChild(draggingId, parentTask.id);
+                    } else {
+                        moveTaskBefore(draggingId, parentTask, index);
+                    }
+                    draggingId = null;
+                }
+                clearAllDropZones();
+            });
+
+            return dropZone;
+        }
+        function clearAllDropZones() {
+            document.querySelectorAll('.drop-zone').forEach(el => el.classList.remove('active'));
+        }
+
+        function createTaskElement(task, parent = null, level = 0) {
+            if (!task || typeof task !== 'object') return document.createTextNode('');
+            if (!Array.isArray(task.subtasks)) task.subtasks = [];
+
+            const el = document.createElement('div');
+            el.className = 'task position-relative';
+            el.setAttribute('data-task-id', task.id);
+
+            const header = document.createElement('div');
+            header.className = 'd-flex justify-content-between align-items-center';
+
+            const left = document.createElement('div');
+            let expandBtn = '';
+            if (task.subtasks.length > 0) {
+                expandBtn = `<button class=\"btn btn-outline-light btn-round me-2\" onclick=\"toggleExpand('${task.id}')\" id=\"expand-${task.id}\">\n                    <i class=\"fa-solid fa-chevron-right chevron-rotate ${task.expanded ? 'open' : ''}\"></i>\n                </button>`;
+            }
+            const totalTime = task.subtasks.length > 0 ? getTotalTime(task) : task.time;
+            left.innerHTML = `
+                <span class=\"drag-handle me-2 text-secondary\" style=\"font-size:1.2em;\"><i class=\"fa-solid fa-grip-vertical\"></i></span>
+                ${expandBtn}
+                <input type=\"checkbox\" class=\"form-check-input\" ${task.done ? 'checked' : ''} onchange=\"toggleDone('${task.id}')\">
+                <span class=\"ms-2 ${task.done ? 'completed' : ''}\">${task.text} <span class=\"badge bg-secondary ms-1\"><i class=\"fa-regular fa-clock me-1\"></i>${totalTime} min</span></span>
+            `;
+
+            const right = document.createElement('div');
+            right.innerHTML = `
+                <button class=\"btn btn-outline-info btn-round me-1\" onclick=\"editTask('${task.id}')\" title=\"Editar\"><i class=\"fa-solid fa-pen\"></i></button>
+                <button class=\"btn btn-outline-danger btn-round\" onclick=\"deleteTask('${task.id}')\" title=\"Excluir\"><i class=\"fa-solid fa-trash\"></i></button>
+            `;
+
+            header.appendChild(left);
+            header.appendChild(right);
+            el.appendChild(header);
+
+            // Faixa azul para subtarefa DENTRO do card
+            el.appendChild(createDropZone(task, 0, 'child'));
+
+            // Container de subtarefas com animação
+            const subContainer = document.createElement('div');
+            subContainer.className = `subtasks ${task.expanded ? 'expanded' : ''}`;
+            subContainer.id = `subs-${task.id}`;
+            if (task.subtasks.length > 0) {
+                renderTaskList(task.subtasks, subContainer, task);
+            }
+            el.appendChild(subContainer);
+
+            el.setAttribute('draggable', 'true');
+            el.addEventListener('dragstart', function (e) {
+                e.stopPropagation();
+                draggingId = task.id;
+                el.classList.add('dragging');
+                document.body.classList.add('dragging-item');
+            });
+            el.addEventListener('dragend', function (e) {
+                e.stopPropagation();
+                draggingId = null;
+                el.classList.remove('dragging');
+                document.body.classList.remove('dragging-item');
+                clearAllDropZones();
+            });
+
+            return el;
+        }
+
+        // Move tarefa para antes de outra tarefa (reordenação)
+        function moveTaskBefore(draggedId, parentTask, index) {
+            let movingTask = null;
+            let sourceList = null;
+
+            // Função para encontrar a lista que contém a tarefa
+            function findTaskList(taskId, lists = tasks, parent = null) {
+                for (let i = 0; i < lists.length; i++) {
+                    if (lists[i].id === taskId) {
+                        sourceList = parent ? parent.subtasks : tasks;
+                        return i;
+                    }
+                    if (lists[i].subtasks) {
+                        const idx = findTaskList(taskId, lists[i].subtasks, lists[i]);
+                        if (idx !== -1) return idx;
+                    }
+                }
+                return -1;
+            }
+
+            // Encontra e remove a tarefa
+            const sourceIndex = findTaskList(draggedId);
+            if (sourceIndex !== -1 && sourceList) {
+                movingTask = sourceList.splice(sourceIndex, 1)[0];
+            }
+
+            // Se encontrou a tarefa, move para o destino
+            if (movingTask) {
+                const targetList = parentTask ? parentTask.subtasks : tasks;
+                const targetIndex = index < 0 ? 0 :
+                    index > targetList.length ? targetList.length :
+                        index;
+                targetList.splice(targetIndex, 0, movingTask);
+                renderTasks();
+            }
+        }
+
+        // Move tarefa para ser subtarefa de outra
+        function moveTaskAsChild(draggedId, targetId) {
+            if (draggedId === targetId) return;
+            let movingTask = null;
+            let sourceList = null;
+
+            // Função para encontrar a lista que contém a tarefa
+            function findTaskList(taskId, lists = tasks, parent = null) {
+                for (let i = 0; i < lists.length; i++) {
+                    if (lists[i].id === taskId) {
+                        sourceList = parent ? parent.subtasks : tasks;
+                        return i;
+                    }
+                    if (lists[i].subtasks) {
+                        const idx = findTaskList(taskId, lists[i].subtasks, lists[i]);
+                        if (idx !== -1) return idx;
+                    }
+                }
+                return -1;
+            }
+
+            // Encontra e remove a tarefa
+            const sourceIndex = findTaskList(draggedId);
+            if (sourceIndex !== -1 && sourceList) {
+                movingTask = sourceList.splice(sourceIndex, 1)[0];
+            }
+
+            // Se encontrou a tarefa, adiciona como subtarefa do alvo
+            if (movingTask) {
+                updateTaskById(targetId, target => {
+                    if (!Array.isArray(target.subtasks)) target.subtasks = [];
+                    target.subtasks.push(movingTask);
+                });
+                renderTasks();
+            }
+        }
+
+        function toggleExpand(id) {
+            updateTaskById(id, task => {
+                task.expanded = !task.expanded;
+                // Anima o chevron
+                const icon = document.querySelector(`#expand-${id} .chevron-rotate`);
+                if (icon) {
+                    if (task.expanded) {
+                        icon.classList.add('open');
+                    } else {
+                        icon.classList.remove('open');
+                    }
+                }
+                // Anima o container de subtarefas
+                const subContainer = document.querySelector(`#subs-${id}`);
+                if (subContainer) {
+                    if (task.expanded) {
+                        subContainer.classList.add('expanded');
+                    } else {
+                        subContainer.classList.remove('expanded');
+                    }
+                }
+            });
+        }
+
+        function getTotalTime(task) {
+            if (!task.subtasks || task.subtasks.length === 0) return task.time;
+            let total = 0;
+            task.subtasks.forEach(sub => total += getTotalTime(sub));
+            return total;
+        }
+
+        function toggleDone(id) {
+            const updateDoneStatus = (taskList, taskId, newStatus) => {
+                return taskList.map(task => {
+                    if (task.id === taskId) {
+                        // Atualiza o status da tarefa
+                        task.done = newStatus;
+                        // Atualiza todas as subtarefas recursivamente
+                        if (task.subtasks && task.subtasks.length > 0) {
+                            task.subtasks = task.subtasks.map(subtask => {
+                                subtask.done = newStatus;
+                                if (subtask.subtasks && subtask.subtasks.length > 0) {
+                                    subtask.subtasks = updateDoneStatus(subtask.subtasks, subtask.id, newStatus);
+                                }
+                                return subtask;
+                            });
+                        }
+                    } else if (task.subtasks && task.subtasks.length > 0) {
+                        // Procura nas subtarefas
+                        task.subtasks = updateDoneStatus(task.subtasks, taskId, newStatus);
+                        // Verifica se todas as subtarefas estão concluídas
+                        const allSubtasksDone = task.subtasks.every(subtask => subtask.done);
+                        if (allSubtasksDone !== task.done) {
+                            task.done = allSubtasksDone;
+                        }
+                    }
+                    return task;
+                });
+            };
+
+            // Encontra a tarefa para saber o novo status
+            const findTask = (taskList, taskId) => {
+                for (const task of taskList) {
+                    if (task.id === taskId) {
+                        return task;
+                    }
+                    if (task.subtasks && task.subtasks.length > 0) {
+                        const found = findTask(task.subtasks, taskId);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            };
+
+            const task = findTask(tasks, id);
+            if (task) {
+                const newStatus = !task.done;
+                tasks = updateDoneStatus(tasks, id, newStatus);
+                saveTasks();
+                renderTasks();
+            }
+        }
+
+        function deleteTask(id) {
+            tasks = deleteTaskRecursive(tasks, id);
+            renderTasks();
+        }
+
+        function deleteTaskRecursive(list, id) {
+            return list.filter(task => {
+                if (task.id === id) return false;
+                task.subtasks = deleteTaskRecursive(task.subtasks, id);
+                return true;
+            });
+        }
+
+        function updateTaskById(id, updater, list = tasks) {
+            for (let task of list) {
+                if (task.id === id) return updater(task);
+                const result = updateTaskById(id, updater, task.subtasks);
+                if (result !== undefined) return result;
+            }
+        }
+
+        function saveTasks() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        function clearAllData() {
+            if (confirm('Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita.')) {
+                localStorage.removeItem('tasks');
+                tasks = [];
+                renderTasks();
+            }
+        }
+
+        loadTasks();
+    </script>
+</body>
+
+</html>
