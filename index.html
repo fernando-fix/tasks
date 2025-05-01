@@ -250,6 +250,7 @@
 
                 // Função para migrar dados antigos (title -> text)
                 const migrateTask = (task) => {
+                    if (!task) return { text: '' }; // Corrige tasks nulas
                     // Se a tarefa tem title mas não tem text, migra o dado
                     if (task.title !== undefined && task.text === undefined) {
                         task.text = task.title;
