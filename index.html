@@ -450,10 +450,12 @@
             dropZone.addEventListener('drop', (e) => {
                 e.preventDefault();
                 if (draggingId !== null) {
-                    if (type === 'child') {
+                    if (type === 'child' && parentTask && parentTask.id) {
                         moveTaskAsChild(draggingId, parentTask.id);
-                    } else {
+                    } else if (parentTask) {
                         moveTaskBefore(draggingId, parentTask, index);
+                    } else {
+                        console.error('Tarefa pai não encontrada');
                     }
                     draggingId = null;
                 }
@@ -603,6 +605,7 @@
                 updateTaskById(targetId, target => {
                     if (!Array.isArray(target.subtasks)) target.subtasks = [];
                     target.subtasks.push(movingTask);
+                    return target; // Adicionado para garantir que o objeto atualizado seja retornado
                 });
                 renderTasks();
             }
