@@ -317,32 +317,44 @@
             event.preventDefault();
             const taskInput = document.getElementById('taskInput');
             const timeInput = document.getElementById('timeInput');
+
+            const text = taskInput.value.trim();
+            const time = timeInput.value !== '' ? parseInt(timeInput.value) : 0;
+
+            if (!text) {
+                alert('Por favor, digite o texto da tarefa');
+                return;
+            }
+
             const task = {
-                id: context?.id || crypto.randomUUID(),
-                text: taskInput.value.trim(),
-                time: parseInt(timeInput.value) || 0,
+                id: context?.id || Date.now().toString(),
+                text: text,
+                time: time,
                 done: false,
                 subtasks: [],
                 expanded: false
             };
 
             if (context?.type === 'edit') {
+                // Preserva as subtarefas e o estado de expansão ao editar
+                const oldTask = findTaskById(context.id);
+                if (oldTask) {
+                    task.subtasks = oldTask.subtasks;
+                    task.expanded = oldTask.expanded;
+                    task.done = oldTask.done;
+                }
                 updateTaskById(context.id, () => task);
             } else {
                 if (context?.type === 'new') {
-                    // Adiciona a tarefa na posição específica
                     if (context.parentId) {
-                        // Adiciona como subtarefa
                         updateTaskById(context.parentId, (parent) => {
                             parent.subtasks.splice(context.position, 0, task);
                             return parent;
                         });
                     } else {
-                        // Adiciona na lista principal
                         tasks.splice(context.position, 0, task);
                     }
                 } else {
-                    // Adiciona ao final da lista principal
                     tasks.push(task);
                 }
             }
@@ -352,6 +364,7 @@
             taskInput.value = '';
             timeInput.value = '';
             cancelContext();
+            taskInput.focus();
         }
 
         function editTask(id) {
@@ -468,12 +481,16 @@
             if (task.subtasks.length > 0) {
                 expandBtn = `<button class=\"btn btn-outline-light btn-round me-2\" onclick=\"toggleExpand('${task.id}')\" id=\"expand-${task.id}\">\n                    <i class=\"fa-solid fa-chevron-right chevron-rotate ${task.expanded ? 'open' : ''}\"></i>\n                </button>`;
             }
-            const totalTime = task.subtasks.length > 0 ? getTotalTime(task) : task.time;
+            
+            // Calcula o tempo total incluindo subtarefas
+            const totalTime = getTotalTime(task);
+            const timeDisplay = totalTime > 0 ? `<span class=\"badge bg-secondary ms-1\"><i class=\"fa-regular fa-clock me-1\"></i>${totalTime} min</span>` : '';
+            
             left.innerHTML = `
                 <span class=\"drag-handle me-2 text-secondary\" style=\"font-size:1.2em;\"><i class=\"fa-solid fa-grip-vertical\"></i></span>
                 ${expandBtn}
                 <input type=\"checkbox\" class=\"form-check-input\" ${task.done ? 'checked' : ''} onchange=\"toggleDone('${task.id}')\">
-                <span class=\"ms-2 ${task.done ? 'completed' : ''}\">${task.text} <span class=\"badge bg-secondary ms-1\"><i class=\"fa-regular fa-clock me-1\"></i>${totalTime} min</span></span>
+                <span class=\"ms-2 ${task.done ? 'completed' : ''}\">${task.text} ${timeDisplay}</span>
             `;
 
             const right = document.createElement('div');
@@ -615,9 +632,12 @@
         }
 
         function getTotalTime(task) {
-            if (!task.subtasks || task.subtasks.length === 0) return task.time;
-            let total = 0;
-            task.subtasks.forEach(sub => total += getTotalTime(sub));
+            let total = task.time || 0;
+            if (task.subtasks && task.subtasks.length > 0) {
+                task.subtasks.forEach(subtask => {
+                    total += getTotalTime(subtask);
+                });
+            }
             return total;
         }
 
@@ -687,10 +707,15 @@
         }
 
         function updateTaskById(id, updater, list = tasks) {
-            for (let task of list) {
-                if (task.id === id) return updater(task);
-                const result = updateTaskById(id, updater, task.subtasks);
-                if (result !== undefined) return result;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i].id === id) {
+                    list[i] = updater(list[i]);
+                    return list[i];
+                }
+                if (list[i].subtasks && list[i].subtasks.length > 0) {
+                    const result = updateTaskById(id, updater, list[i].subtasks);
+                    if (result !== undefined) return result;
+                }
             }
         }
 
