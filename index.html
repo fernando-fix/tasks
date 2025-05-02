@@ -190,6 +190,20 @@
             align-items: center;
             justify-content: center;
         }
+
+        .progress-bar-container {
+            height: 4px;
+            background-color: #2a2a2a;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #4caf50;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 
@@ -501,11 +515,21 @@
             const totalTime = getTotalTime(task);
             const timeDisplay = totalTime > 0 ? `<span class=\"badge bg-secondary ms-1\"><i class=\"fa-regular fa-clock me-1\"></i>${totalTime} min</span>` : '';
             
+            // Calcula o progresso baseado nas subtarefas concluídas
+            const progress = calculateProgress(task);
+            // Mostra a barra de progresso apenas para tasks do nível raiz (parent === null)
+            const progressBar = (parent === null && task.subtasks.length > 0) ? `
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: ${progress}%"></div>
+                </div>
+            ` : '';
+            
             left.innerHTML = `
                 <span class=\"drag-handle me-2 text-secondary\" style=\"font-size:1.2em;\"><i class=\"fa-solid fa-grip-vertical\"></i></span>
                 ${expandBtn}
                 <input type=\"checkbox\" class=\"form-check-input\" ${task.done ? 'checked' : ''} onchange=\"toggleDone('${task.id}')\">
                 <span class=\"ms-2 ${task.done ? 'completed' : ''}\">${task.text} ${timeDisplay}</span>
+                ${progressBar}
             `;
 
             const right = document.createElement('div');
@@ -518,8 +542,10 @@
             header.appendChild(right);
             el.appendChild(header);
 
-            // Faixa azul para subtarefa DENTRO do card
-            el.appendChild(createDropZone(task, 0, 'child'));
+            // Faixa azul para subtarefa DENTRO do card - apenas se não tiver subtarefas
+            if (task.subtasks.length === 0) {
+                el.appendChild(createDropZone(task, 0, 'child'));
+            }
 
             // Container de subtarefas com animação
             const subContainer = document.createElement('div');
@@ -746,6 +772,15 @@
                 tasks = [];
                 renderTasks();
             }
+        }
+
+        function calculateProgress(task) {
+            if (!task.subtasks || task.subtasks.length === 0) {
+                return task.done ? 100 : 0;
+            }
+
+            const completedSubtasks = task.subtasks.filter(subtask => subtask.done).length;
+            return Math.round((completedSubtasks / task.subtasks.length) * 100);
         }
 
         loadTasks();
