@@ -448,19 +448,31 @@
             });
 
             dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                if (draggingId !== null) {
-                    if (type === 'child' && parentTask && parentTask.id) {
-                        moveTaskAsChild(draggingId, parentTask.id);
-                    } else if (parentTask) {
-                        moveTaskBefore(draggingId, parentTask, index);
-                    } else {
-                        console.error('Tarefa pai não encontrada');
-                    }
-                    draggingId = null;
+            e.preventDefault();
+            if (draggingId !== null) {
+                // Obtém os dados associados a ESTA drop zone específica
+                const dropTargetParentTask = parentTask; // O parentTask passado para createDropZone
+                const dropTargetIndex = index;          // O index passado para createDropZone
+                const dropTargetType = type;            // O type passado para createDropZone
+
+                // Lógica Corrigida:
+                if (dropTargetType === 'child' && dropTargetParentTask && dropTargetParentTask.id) {
+                    // Mover como filho: O alvo é o dropTargetParentTask associado a esta drop zone 'child'
+                    moveTaskAsChild(draggingId, dropTargetParentTask.id);
+                } else if (dropTargetType === 'before') {
+                    // Mover para antes: O pai do alvo é dropTargetParentTask (pode ser null para nível raiz),
+                    // inserir na posição dropTargetIndex.
+                    moveTaskBefore(draggingId, dropTargetParentTask, dropTargetIndex);
+                } else {
+                    // Caso de segurança, se houver um tipo de drop zone inesperado
+                    console.error('Tipo de drop zone não tratado ou tarefa pai ausente para o tipo child.');
                 }
-                clearAllDropZones();
-            });
+
+                // Resetar draggingId APÓS a lógica de mover ter sido tentada
+                draggingId = null;
+            }
+            clearAllDropZones();
+        });
 
             return dropZone;
         }
