@@ -12,7 +12,6 @@
         body {
             background-color: #121212;
             color: #e0e0e0;
-            padding: 2rem;
         }
 
         /* Estilo dark para inputs */
@@ -73,8 +72,7 @@
             opacity: 0.6;
         }
 
-        .subtasks {
-            margin-left: 2rem;
+        .subtasks {            
             overflow: hidden;
             transition: all 0.3s ease;
             max-height: 0;
@@ -221,27 +219,36 @@
 <body class="bg-dark text-light">
     <div class="container py-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Gerenciador de Tarefas</h1>
-            <div class="d-flex align-items-center gap-3">
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" id="hideCompleted">
-                    <label class="form-check-label" for="hideCompleted">Ocultar concluídas</label>
+            <div class="row w-100">
+                <div class="col-md-7 text-center text-md-start">
+                    <h1 class="mb-4 mb-md-0">Gerenciador de Tarefas</h1>
                 </div>
-                <button class="btn btn-outline-danger" onclick="clearAllData()">
-                    <i class="fa-solid fa-trash-can me-2"></i>Limpar Dados
-                </button>
+                <div class="col-md-5">
+                    <div class="d-flex justify-content-between align-items-center gap-3 px-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="hideCompleted">
+                            <label class="form-check-label" for="hideCompleted">
+                                <i class="fa-solid fa-eye d-inline d-md-none"></i>
+                                <span class="d-none d-md-inline">Ocultar concluídas</span>
+                            </label>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="clearAllData()">
+                            <i class="fa-solid fa-trash-can me-2"></i>Limpar Dados
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="mb-4">
             <div id="contextInfo" class="mb-2 text-info" style="display:none"></div>
             <form id="taskForm" onsubmit="handleAddOrEdit(event)">
-                <input type="text" id="taskInput" class="form-control mb-2" placeholder="Digite a tarefa" autofocus>
-                <input type="number" id="timeInput" class="form-control mb-2" placeholder="Tempo estimado (min)"
+                <input type="text" id="taskInput" class="form-control mb-2 rounded-5" placeholder="Digite a tarefa" autofocus>
+                <input type="number" id="timeInput" class="form-control mb-2 rounded-5 mb-3" placeholder="Tempo estimado (min)"
                     min="0">
-                <button type="submit" class="btn btn-outline-primary me-1" id="addButton">
+                <button type="submit" class="btn btn-sm btn-outline-primary me-1" id="addButton">
                     <i class="fa-solid fa-plus me-2"></i>Adicionar
                 </button>
-                <button type="button" class="btn btn-secondary" id="cancelBtn" style="display:none"
+                <button type="button" class="btn btn-sm btn-secondary" id="cancelBtn" style="display:none"
                     onclick="cancelContext()">Cancelar</button>
             </form>
         </div>
@@ -473,31 +480,31 @@
             });
 
             dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            if (draggingId !== null) {
-                // Obtém os dados associados a ESTA drop zone específica
-                const dropTargetParentTask = parentTask; // O parentTask passado para createDropZone
-                const dropTargetIndex = index;          // O index passado para createDropZone
-                const dropTargetType = type;            // O type passado para createDropZone
+                e.preventDefault();
+                if (draggingId !== null) {
+                    // Obtém os dados associados a ESTA drop zone específica
+                    const dropTargetParentTask = parentTask; // O parentTask passado para createDropZone
+                    const dropTargetIndex = index;          // O index passado para createDropZone
+                    const dropTargetType = type;            // O type passado para createDropZone
 
-                // Lógica Corrigida:
-                if (dropTargetType === 'child' && dropTargetParentTask && dropTargetParentTask.id) {
-                    // Mover como filho: O alvo é o dropTargetParentTask associado a esta drop zone 'child'
-                    moveTaskAsChild(draggingId, dropTargetParentTask.id);
-                } else if (dropTargetType === 'before') {
-                    // Mover para antes: O pai do alvo é dropTargetParentTask (pode ser null para nível raiz),
-                    // inserir na posição dropTargetIndex.
-                    moveTaskBefore(draggingId, dropTargetParentTask, dropTargetIndex);
-                } else {
-                    // Caso de segurança, se houver um tipo de drop zone inesperado
-                    console.error('Tipo de drop zone não tratado ou tarefa pai ausente para o tipo child.');
+                    // Lógica Corrigida:
+                    if (dropTargetType === 'child' && dropTargetParentTask && dropTargetParentTask.id) {
+                        // Mover como filho: O alvo é o dropTargetParentTask associado a esta drop zone 'child'
+                        moveTaskAsChild(draggingId, dropTargetParentTask.id);
+                    } else if (dropTargetType === 'before') {
+                        // Mover para antes: O pai do alvo é dropTargetParentTask (pode ser null para nível raiz),
+                        // inserir na posição dropTargetIndex.
+                        moveTaskBefore(draggingId, dropTargetParentTask, dropTargetIndex);
+                    } else {
+                        // Caso de segurança, se houver um tipo de drop zone inesperado
+                        console.error('Tipo de drop zone não tratado ou tarefa pai ausente para o tipo child.');
+                    }
+
+                    // Resetar draggingId APÓS a lógica de mover ter sido tentada
+                    draggingId = null;
                 }
-
-                // Resetar draggingId APÓS a lógica de mover ter sido tentada
-                draggingId = null;
-            }
-            clearAllDropZones();
-        });
+                clearAllDropZones();
+            });
 
             return dropZone;
         }
@@ -519,13 +526,13 @@
             const left = document.createElement('div');
             let expandBtn = '';
             if (task.subtasks.length > 0) {
-                expandBtn = `<button class=\"btn btn-outline-light btn-round me-2\" onclick=\"toggleExpand('${task.id}')\" id=\"expand-${task.id}\">\n                    <i class=\"fa-solid fa-chevron-right chevron-rotate ${task.expanded ? 'open' : ''}\"></i>\n                </button>`;
+                expandBtn = `<button class=\"btn btn-sm btn-outline-light btn-round me-2\" onclick=\"toggleExpand('${task.id}')\" id=\"expand-${task.id}\">\n                    <i class=\"fa-solid fa-chevron-right chevron-rotate ${task.expanded ? 'open' : ''}\"></i>\n                </button>`;
             }
-            
+
             // Calcula o tempo total incluindo subtarefas
             const totalTime = getTotalTime(task);
             const timeDisplay = totalTime > 0 ? `<span class=\"badge bg-secondary ms-1\"><i class=\"fa-regular fa-clock me-1\"></i>${totalTime} min</span>` : '';
-            
+
             // Calcula o progresso baseado nas subtarefas concluídas
             const progress = calculateProgress(task);
             // Mostra a barra de progresso apenas para tasks do nível raiz (parent === null)
@@ -534,7 +541,7 @@
                     <div class="progress-bar" style="width: ${progress}%"></div>
                 </div>
             ` : '';
-            
+
             left.innerHTML = `
                 <span class=\"drag-handle me-2 text-secondary\" style=\"font-size:1.2em;\"><i class=\"fa-solid fa-grip-vertical\"></i></span>
                 ${expandBtn}
@@ -545,8 +552,8 @@
 
             const right = document.createElement('div');
             right.innerHTML = `
-                <button class=\"btn btn-outline-info btn-round me-1\" onclick=\"editTask('${task.id}')\" title=\"Editar\"><i class=\"fa-solid fa-pen\"></i></button>
-                <button class=\"btn btn-outline-danger btn-round\" onclick=\"confirmDelete('${task.id}')\" title=\"Excluir\" id=\"delete-${task.id}\"><i class=\"fa-solid fa-trash\"></i></button>
+                <button class=\"btn btn-sm btn-outline-info btn-round me-1\" onclick=\"editTask('${task.id}')\" title=\"Editar\"><i class=\"fa-solid fa-pen\"></i></button>
+                <button class=\"btn btn-sm btn-outline-danger btn-round\" onclick=\"confirmDelete('${task.id}')\" title=\"Excluir\" id=\"delete-${task.id}\"><i class=\"fa-solid fa-trash\"></i></button>
             `;
 
             header.appendChild(left);
@@ -812,7 +819,7 @@
 
         function confirmDelete(id) {
             const deleteBtn = document.getElementById(`delete-${id}`);
-            
+
             if (deleteBtn.classList.contains('confirm-delete')) {
                 // Se já está em modo de confirmação, deleta a tarefa
                 deleteTask(id);
@@ -826,7 +833,7 @@
                 deleteBtn.classList.remove('btn-outline-danger');
                 deleteBtn.classList.add('btn-warning');
                 deleteBtn.innerHTML = '<i class="fa-solid fa-exclamation"></i>';
-                
+
                 // Reseta o botão após 3 segundos se não houver segundo clique
                 setTimeout(() => {
                     if (deleteBtn.classList.contains('confirm-delete')) {
