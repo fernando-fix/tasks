@@ -809,12 +809,33 @@
         }
 
         function calculateProgress(task) {
-            if (!task.subtasks || task.subtasks.length === 0) {
-                return task.done ? 100 : 0;
+            // Função auxiliar para somar tempos das tarefas sem subtarefas
+            function sumLeafTasksTime(t) {
+                let result = {
+                    totalTime: 0,
+                    completedTime: 0
+                };
+
+                // Se não tem subtarefas, soma o tempo desta tarefa
+                if (!t.subtasks || t.subtasks.length === 0) {
+                    result.totalTime = t.time || 0;
+                    result.completedTime = t.done ? (t.time || 0) : 0;
+                } else {
+                    // Se tem subtarefas, soma os tempos delas
+                    t.subtasks.forEach(subtask => {
+                        const subtaskResult = sumLeafTasksTime(subtask);
+                        result.totalTime += subtaskResult.totalTime;
+                        result.completedTime += subtaskResult.completedTime;
+                    });
+                }
+
+                return result;
             }
 
-            const completedSubtasks = task.subtasks.filter(subtask => subtask.done).length;
-            return Math.round((completedSubtasks / task.subtasks.length) * 100);
+            const result = sumLeafTasksTime(task);
+            if (result.totalTime === 0) return 0; // Se não tem tempo definido, retorna 0%
+            
+            return Math.round((result.completedTime / result.totalTime) * 100);
         }
 
         function confirmDelete(id) {
