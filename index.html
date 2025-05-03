@@ -53,7 +53,7 @@
             border-radius: 8px;
             position: relative;
             transition: background-color 0.2s ease;
-            border: 1px solid #2b2b2b;
+            border: 1px solid #616161;
         }
 
         .task.drop-target {
@@ -186,6 +186,10 @@
 
         .chevron-rotate.open {
             transform: rotate(90deg);
+        }
+
+        .btn {
+            border-radius: 20px !important;
         }
 
         .btn-round {
@@ -542,7 +546,7 @@
             const right = document.createElement('div');
             right.innerHTML = `
                 <button class=\"btn btn-outline-info btn-round me-1\" onclick=\"editTask('${task.id}')\" title=\"Editar\"><i class=\"fa-solid fa-pen\"></i></button>
-                <button class=\"btn btn-outline-danger btn-round\" onclick=\"deleteTask('${task.id}')\" title=\"Excluir\"><i class=\"fa-solid fa-trash\"></i></button>
+                <button class=\"btn btn-outline-danger btn-round\" onclick=\"confirmDelete('${task.id}')\" title=\"Excluir\" id=\"delete-${task.id}\"><i class=\"fa-solid fa-trash\"></i></button>
             `;
 
             header.appendChild(left);
@@ -804,6 +808,35 @@
 
             const completedSubtasks = task.subtasks.filter(subtask => subtask.done).length;
             return Math.round((completedSubtasks / task.subtasks.length) * 100);
+        }
+
+        function confirmDelete(id) {
+            const deleteBtn = document.getElementById(`delete-${id}`);
+            
+            if (deleteBtn.classList.contains('confirm-delete')) {
+                // Se já está em modo de confirmação, deleta a tarefa
+                deleteTask(id);
+                deleteBtn.classList.remove('confirm-delete');
+                deleteBtn.classList.remove('btn-warning');
+                deleteBtn.classList.add('btn-outline-danger');
+                deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+            } else {
+                // Primeiro clique: muda para modo de confirmação
+                deleteBtn.classList.add('confirm-delete');
+                deleteBtn.classList.remove('btn-outline-danger');
+                deleteBtn.classList.add('btn-warning');
+                deleteBtn.innerHTML = '<i class="fa-solid fa-exclamation"></i>';
+                
+                // Reseta o botão após 3 segundos se não houver segundo clique
+                setTimeout(() => {
+                    if (deleteBtn.classList.contains('confirm-delete')) {
+                        deleteBtn.classList.remove('confirm-delete');
+                        deleteBtn.classList.remove('btn-warning');
+                        deleteBtn.classList.add('btn-outline-danger');
+                        deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                    }
+                }, 3000);
+            }
         }
 
         loadTasks();
